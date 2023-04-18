@@ -6,9 +6,9 @@ from gymnasium import spaces
 import numpy as np
 import time
 import re
+
 from PyKDL import Frame, Rotation, Vector
-
-
+from gym.spaces.box import Box
 from src.scripts.surgical_robotics_challenge.psm_arm import PSM
 from src.scripts.surgical_robotics_challenge.ecm_arm import ECM
 from src.scripts.surgical_robotics_challenge.scene import Scene
@@ -18,11 +18,6 @@ from src.scripts.surgical_robotics_challenge.utils.task3_init import NeedleIniti
 from src.scripts.surgical_robotics_challenge.evaluation.evaluation import Task_2_Evaluation, Task_2_Evaluation_Report
 from utils.observation import Observation
 from utils.needle_kinematics import NeedleKinematics
-
-N_DISCRETE_ACTIONS = 3
-HEIGHT = 0
-WIDTH = 0
-N_CHANNELS = 0
 
 
 def add_break(s):
@@ -36,13 +31,13 @@ class SRCEnv(gym.Env):
     def __init__(self):
         # Define action and observation space
         super(SRCEnv, self).__init__()
-        self.action_space = spaces.Discrete(N_DISCRETE_ACTIONS)
         # Limits for psm
-        self.action_lims_low = [np.deg2rad(-91.96), np.deg2rad(-60), -0.0, np.deg2rad(-175), np.deg2rad(-90), np.deg2rad(-85)]
-        self.action_lims_high = [np.deg2rad(91.96), np.deg2rad(60), 0.240, np.deg2rad(175), np.deg2rad(90), np.deg2rad(85)]
+        self.action_lims_low = np.array([np.deg2rad(-91.96), np.deg2rad(-60), -0.0, np.deg2rad(-175), np.deg2rad(-90), np.deg2rad(-85), 0])
+        self.action_lims_high = np.array([np.deg2rad(91.96), np.deg2rad(60), 0.240, np.deg2rad(175), np.deg2rad(90), np.deg2rad(85), 1])
+        self.action_space = spaces.Box(self.action_lims_low, self.action_lims_high)
 
         self.observation_space = spaces.Box(
-            low=0, high=255, shape=(HEIGHT, WIDTH, N_CHANNELS), dtype=np.uint8)
+            low=-np.inf, high=np.inf, shape=(7,))
         self.obs = Observation()
 
         # Connect to client using SimulationManager
@@ -62,9 +57,13 @@ class SRCEnv(gym.Env):
         add_break(0.5)
         return
 
-    def get_needle_in_world(self):
-        """ Get the needle pose in world coordinates """
+    def get_needle_tip_in_world(self):
+        """ Get the needle tip pose in world coordinates """
         return self._needle_kin.get_tip_pose()
+
+    def get_needle_mid_in_world(self):
+        """ Get the needle mid pose in world coordinates """
+        return self._needle_kin.get_mid_pose()
 
     def _update_observation(self, action):
         """ Update the observation of the environment
@@ -72,10 +71,12 @@ class SRCEnv(gym.Env):
         Parameters
         - action: an action provided by the environment
         """
-        self.obs.state = self.psm1.measured_jp() + action # jp = jaw position
+        self.obs.state += action
+        self.psm1.servo_jp(action[:6])
+        self.psm1.set_jaw_angle(action[6])
 
         # Compute current distance and approach angle of psm and needle, both in world coordinates
-        self.obs.dist = self.calc_dist(self.get_needle_in_world(), self.psm1.measured_cp())
+        self.obs.dist = self.calc_dist(self.get_needle_mid_in_world(), self.psm1.measured_cp())
         self.obs.angle = self.calc_angle(self.psm1) 
         self.obs.reward = self.reward(self.obs)
         self.obs.info = {}
@@ -85,8 +86,9 @@ class SRCEnv(gym.Env):
         if self.obs.dist < 0.01 and self.obs.angle < 0.01:
             self.obs.is_done = True
 
-    def reset(self):
+    def reset(self, **kwargs):
         """ Reset the state of the environment to an initial state """
+        print('reset func')
         self.world_handle.reset()
         self.psm1.servo_jp([-0.4, -0.22, 0.139, -1.64, -0.37, -0.11])
         self.psm1.set_jaw_angle(0.8)
@@ -97,7 +99,7 @@ class SRCEnv(gym.Env):
                   0.0,
                   0.0,
                   0.0]
-        return self.step(action)[0]
+        return np.array(self.obs.state, dtype=np.float32), self.obs.info
     
 
     def step(self, action):
@@ -111,6 +113,7 @@ class SRCEnv(gym.Env):
 
         """
         # Limit PSM action to bounds
+        print('action: ', action)
         action = np.clip(action, self.action_lims_low, self.action_lims_high)
         self.action = action
 
@@ -120,6 +123,7 @@ class SRCEnv(gym.Env):
         # Update simulation
         self.world_handle.update()
         self._update_observation(action)
+        print('step end')
         return self.obs.cur_observation()
 
     def reward(self, obs):
@@ -140,7 +144,7 @@ class SRCEnv(gym.Env):
         return reward
 
     def calc_angle(self, psm):
-        """ Compute dot product of needle tip and specific psm tip
+        """ Compute dot product of needle mid and specific psm tip
         
         Parameters
         - needle: the needle pose in world coordinates
@@ -148,12 +152,12 @@ class SRCEnv(gym.Env):
         
         Returns
         - angle: the angle between the needle and psm"""
-        # TODO double check axes of needle R; between x and y?
-        needle_R = str(self.get_needle_in_world().M).replace('[', '').replace(']', '').replace('\n', ' ').replace(';', ' ').replace(',', ' ').split()
-        needle_R = np.array([float(i) for i in needle_R]).reshape(3, 3)[0:3, 0:1]
-        psm_R = np.array(psm.measured_cp()[0:3, 1:2] * -1)
-        print('shapes: ', needle_R.shape, psm_R.shape)
-        return np.dot(np.squeeze(np.asarray(needle_R)), np.squeeze(np.asarray(psm_R)))
+        needle_R = str(self.get_needle_mid_in_world().M).replace('[', '').replace(']', '').replace('\n', ' ').replace(';', ' ').replace(',', ' ').split()
+        needle_R_x = np.array([float(i) for i in needle_R]).reshape(3, 3)[0:3, 0].T
+        needle_R_y = np.array([float(i) for i in needle_R]).reshape(3, 3)[0:3, 1].T
+        psm_R_x = np.array(psm.measured_cp()[0:3, 0])
+        psm_R_y = np.array(psm.measured_cp()[0:3, 1])
+        return np.cross(needle_R_x, psm_R_x, axis=0) + np.cross(needle_R_y, psm_R_y, axis=0)
 
     def calc_dist(self, goal_pose, current_pose):
         """ Compute the distance between the goal pose and current pose
@@ -165,7 +169,6 @@ class SRCEnv(gym.Env):
         Returns
         - dist: the distance between the goal pose and current pose
         """
-        # TODO: fix goal_pose is vector, current_pose is float
         if type(goal_pose) == Frame:
             goal_pose_p = np.array([goal_pose.p.x(), goal_pose.p.y(), goal_pose.p.z()])
         elif type(goal_pose) == np.matrix:
@@ -189,20 +192,6 @@ class SRCEnv(gym.Env):
         - reward: the reward for grasping the needle in PSM
         """
         return -(obs.dist + obs.angle)
-
-    def reset(self):
-        # Reset the state of the environment to an initial state
-        self.world_handle.reset()  # self.world_handle.reset_bodies()
-        self.psm2.servo_jp([-0.4, -0.22, 0.139, -1.64, -0.37, -0.11])
-        self.psm2.set_jaw_angle(0.8)
-        add_break(3.0)
-        action = [0.0,
-                  0.0,
-                  0.0,
-                  0.0,
-                  0.0,
-                  0.0]
-        return self.step(action)[0]
 
     def render(self, mode='human', close=False):
         '''
@@ -233,4 +222,5 @@ class SRCEnv(gym.Env):
 if __name__ == "__main__":
     env = SRCEnv()
     env.step([1.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+    env.reset()
     env.render()
