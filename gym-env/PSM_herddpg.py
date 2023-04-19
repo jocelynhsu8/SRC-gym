@@ -6,6 +6,7 @@ import os, time
 # from stable_baselines3.common.noise import OrnsteinUhlenbeckActionNoise
 # from stable_baselines3.common.callbacks import CallbackList, CheckpointCallback, EvalCallback
 import tianshou as ts
+from tianshou.policy import DDPGPolicy
 import torch, numpy as np, torch.nn as nn
 from tianshou.utils.net.common import Net
 from torch.utils.tensorboard import SummaryWriter
@@ -33,10 +34,18 @@ def main():
     env = gym.make(task)
     state_shape = env.observation_space.shape or env.observation_space.n
     action_shape = env.action_space.shape or env.action_space.n
-    net = Net(state_shape=state_shape, action_shape=action_shape, hidden_sizes=[128, 128, 128])
-    optim = torch.optim.Adam(net.parameters(), lr=lr)
 
-    policy = ts.policy.DQNPolicy(net, optim, gamma, n_step, target_update_freq=target_freq)
+    actor_net = Net(state_shape=state_shape, action_shape=action_shape, hidden_sizes=[128, 128, 128])
+    actor_optim = torch.optim.Adam(actor_net.parameters(), lr=lr)
+
+    critic_net = Net(state_shape=state_shape, action_shape=action_shape, hidden_sizes=[128, 128, 128])
+    critic_optim = torch.optim.Adam(critic_net.parameters(), lr=lr)
+
+    
+
+    # policy = ts.policy.DDPGPolicy(net, optim, gamma, n_step, target_update_freq=target_freq)
+    policy = DDPGPolicy(actor_net, actor_optim, critic_net, critic_optim, gamma=gamma, estimation_step=n_step)
+
     # train_collector = ts.data.Collector(policy, train_envs, ts.data.VectorReplayBuffer(buffer_size, train_num), exploration_noise=True)
     train_collector = ts.data.Collector(policy, train_envs, exploration_noise=True)  # because DQN uses epsilon-greedy method
     test_collector = ts.data.Collector(policy, test_envs, exploration_noise=True)  # because DQN uses epsilon-greedy method
@@ -52,8 +61,8 @@ def main():
         test_num, 
         batch_size, 
         update_per_step=1 / step_per_collect,
-        train_fn=lambda epoch, env_step: policy.set_eps(eps_train),
-        test_fn=lambda epoch, env_step: policy.set_eps(eps_test),
+        # train_fn=lambda epoch, env_step: policy.set_eps(eps_train),
+        # test_fn=lambda epoch, env_step: policy.set_eps(eps_test),
         stop_fn=lambda mean_rewards: mean_rewards >= env.spec.reward_threshold,
         logger=logger)
     print(f'Finished training! Use {result["duration"]}')
