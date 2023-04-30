@@ -32,19 +32,16 @@ class SRCEnv(gym.Env):
         # Define action and observation space
         super(SRCEnv, self).__init__()
         # Limits for psm
-        self.action_lims_low = np.array([np.deg2rad(-91.96), np.deg2rad(-60), -0.0, np.deg2rad(-175), np.deg2rad(-90), np.deg2rad(-85), 0])
-        self.action_lims_high = np.array([np.deg2rad(91.96), np.deg2rad(60), 0.240, np.deg2rad(175), np.deg2rad(90), np.deg2rad(85), 1])
-        self.action_space = spaces.Box(self.action_lims_low, self.action_lims_high)
+        self.state_lims_low = np.array([np.deg2rad(-91.96), np.deg2rad(-60), -0.0, np.deg2rad(-175), np.deg2rad(-90), np.deg2rad(-85), 0])
+        self.state_lims_high = np.array([np.deg2rad(91.96), np.deg2rad(60), 0.240, np.deg2rad(175), np.deg2rad(90), np.deg2rad(85), 1])
+        self.action_lims_low = np.array([np.deg2rad(-5), np.deg2rad(-5), np.deg2rad(-5), np.deg2rad(-5), np.deg2rad(-5), np.deg2rad(-5), 0])
+        self.action_lims_high = np.array([np.deg2rad(5), np.deg2rad(5), np.deg2rad(5), np.deg2rad(5), np.deg2rad(5), np.deg2rad(-5), 0.2])
+        self.action_space = spaces.Box(self.state_lims_low, self.state_lims_high)
 
         self.observation_space = spaces.Box(
-<<<<<<< HEAD
             low=np.array([-np.inf, -np.inf, -np.inf, -np.inf, -np.inf, -np.inf, 0]), 
             high=np.array([np.inf, np.inf, np.inf, np.inf, np.inf, np.inf, 1]), 
             shape=(7,))
-=======
-            low=-np.inf, high=np.inf, shape=(7,))
-        self.obs = Observation()
->>>>>>> 7e53c47c524c057c7b586904457ceee746dfe523
 
         # Connect to client using SimulationManager
         self.simulation_manager = SimulationManager('src_client')
@@ -59,14 +56,11 @@ class SRCEnv(gym.Env):
         self.needle = NeedleInitialization(self.simulation_manager) # needle obj
         self._needle_kin = NeedleKinematics() # needle movement and positioning
 
-<<<<<<< HEAD
         self.psm1.servo_jp([-0.4, -0.22, 0.139, -1.64, -0.37, -0.11])
         self.init_obs = np.array([-0.4, -0.22, 0.139, -1.64, -0.37, -0.11, 0.8])
         self.init_obs = np.array(self.init_obs)
         self.obs = Observation(self.init_obs)
 
-=======
->>>>>>> 7e53c47c524c057c7b586904457ceee746dfe523
         # Small sleep to let the handles initialize properly
         add_break(0.5)
         return
@@ -85,23 +79,16 @@ class SRCEnv(gym.Env):
         Parameters
         - action: an action provided by the environment
         """
-        self.obs.state += action
-<<<<<<< HEAD
+        self.obs.state += 1/120*action # TODO: multiply by dt
+        self.obs.state = np.clip(self.obs.state, self.state_lims_low, self.state_lims_high)
         self.psm1.servo_jp(self.obs.state[:6])
         self.psm1.set_jaw_angle(self.obs.state[6])
-=======
-        self.psm1.servo_jp(action[:6])
-        self.psm1.set_jaw_angle(action[6])
->>>>>>> 7e53c47c524c057c7b586904457ceee746dfe523
 
         # Compute current distance and approach angle of psm and needle, both in world coordinates
         self.obs.dist = self.calc_dist(self.get_needle_mid_in_world(), self.psm1.measured_cp())
         self.obs.angle = self.calc_angle(self.psm1) 
         self.obs.reward = self.reward(self.obs)
-<<<<<<< HEAD
         print('reward: ', self.obs.reward)
-=======
->>>>>>> 7e53c47c524c057c7b586904457ceee746dfe523
         self.obs.info = {}
         self.obs.sim_step_no += 1
 
@@ -115,18 +102,8 @@ class SRCEnv(gym.Env):
         self.world_handle.reset()
         self.psm1.servo_jp([-0.4, -0.22, 0.139, -1.64, -0.37, -0.11])
         self.psm1.set_jaw_angle(0.8)
-<<<<<<< HEAD
         self.obs.reset(self.init_obs)
         add_break(3.0)
-=======
-        add_break(3.0)
-        action = [0.0,
-                  0.0,
-                  0.0,
-                  0.0,
-                  0.0,
-                  0.0]
->>>>>>> 7e53c47c524c057c7b586904457ceee746dfe523
         return np.array(self.obs.state, dtype=np.float32), self.obs.info
     
 
@@ -141,25 +118,15 @@ class SRCEnv(gym.Env):
 
         """
         # Limit PSM action to bounds
-<<<<<<< HEAD
         print('before step: ', self.obs.state)
-=======
->>>>>>> 7e53c47c524c057c7b586904457ceee746dfe523
         print('action: ', action)
-        action = np.clip(action, self.action_lims_low, self.action_lims_high)
+        action = np.clip(action, self.action_lims_low, self.action_lims_high) # TODO: apply to final step, not just action
         self.action = action
-
-        # Move PSM
-        self.psm1.servo_jp(action)
 
         # Update simulation
         self.world_handle.update()
         self._update_observation(action)
-<<<<<<< HEAD
         print('after step: ', self.obs.state)
-=======
-        print('step end')
->>>>>>> 7e53c47c524c057c7b586904457ceee746dfe523
         return self.obs.cur_observation()
 
     def reward(self, obs):
@@ -173,14 +140,12 @@ class SRCEnv(gym.Env):
         """
         reward = 0
         grasp_reward = self.grasp_reward(obs)
-<<<<<<< HEAD
         print('reward: ', grasp_reward)
-=======
->>>>>>> 7e53c47c524c057c7b586904457ceee746dfe523
         # TODO: Uncomment when implemented
         # insert_reward = self.insert_reward(obs)
         # target_reward = self.target_reward(obs)
         reward += grasp_reward
+        reward = -1 if reward < -0.1 else 0 # binarize for HER
         return reward
 
     def calc_angle(self, psm):
@@ -193,19 +158,11 @@ class SRCEnv(gym.Env):
         Returns
         - angle: the angle between the needle and psm"""
         needle_R = str(self.get_needle_mid_in_world().M).replace('[', '').replace(']', '').replace('\n', ' ').replace(';', ' ').replace(',', ' ').split()
-<<<<<<< HEAD
         needle_R_x = np.array([float(i) for i in needle_R]).reshape(3, 3)[0:3, 0:1].T
         needle_R_y = np.array([float(i) for i in needle_R]).reshape(3, 3)[0:3, 1:2].T
         psm_R_x = np.array(psm.measured_cp()[0:3, 0])
         psm_R_y = np.array(psm.measured_cp()[0:3, 1])
         return np.dot(needle_R_x, psm_R_x) + np.dot(needle_R_y, psm_R_y)
-=======
-        needle_R_x = np.array([float(i) for i in needle_R]).reshape(3, 3)[0:3, 0].T
-        needle_R_y = np.array([float(i) for i in needle_R]).reshape(3, 3)[0:3, 1].T
-        psm_R_x = np.array(psm.measured_cp()[0:3, 0])
-        psm_R_y = np.array(psm.measured_cp()[0:3, 1])
-        return np.cross(needle_R_x, psm_R_x, axis=0) + np.cross(needle_R_y, psm_R_y, axis=0)
->>>>>>> 7e53c47c524c057c7b586904457ceee746dfe523
 
     def calc_dist(self, goal_pose, current_pose):
         """ Compute the distance between the goal pose and current pose
@@ -239,14 +196,10 @@ class SRCEnv(gym.Env):
         Returns
         - reward: the reward for grasping the needle in PSM
         """
-<<<<<<< HEAD
         # return -obs.dist
         print('obs.dist: ', obs.dist)
         print('obs.angle: ', obs.angle)
         return -(obs.dist + obs.angle[0][0])
-=======
-        return -(obs.dist + obs.angle)
->>>>>>> 7e53c47c524c057c7b586904457ceee746dfe523
 
     def render(self, mode='human', close=False):
         '''
@@ -276,15 +229,9 @@ class SRCEnv(gym.Env):
 
 if __name__ == "__main__":
     env = SRCEnv()
-<<<<<<< HEAD
     env.reset()
     print(env.obs.state)
     env.step([1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
     print(env.obs.state)
     # env.reset()
     # env.render()
-=======
-    env.step([1.0, 0.0, 0.0, 0.0, 0.0, 0.0])
-    env.reset()
-    env.render()
->>>>>>> 7e53c47c524c057c7b586904457ceee746dfe523
