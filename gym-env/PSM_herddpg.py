@@ -5,6 +5,7 @@ import os, time
 import tianshou as ts
 from tianshou.policy import DDPGPolicy
 from tianshou.data import Batch, ReplayBuffer
+
 import torch, numpy as np, torch.nn as nn
 from tianshou.utils.net.common import Net
 from torch.utils.tensorboard import SummaryWriter
@@ -41,7 +42,6 @@ def main(verbose=False):
     policy = DDPGPolicy(actor_net, actor_optim, critic_net, critic_optim, gamma=gamma, estimation_step=n_step)
 
     buf = ReplayBuffer(size=12)
-
     # train_collector = ts.data.Collector(policy, train_envs, ts.data.VectorReplayBuffer(buffer_size, train_num), exploration_noise=True)
     train_collector = ts.data.Collector(policy, train_envs, exploration_noise=True)  # because DQN uses epsilon-greedy method
     test_collector = ts.data.Collector(policy, test_envs, exploration_noise=True)  # because DQN uses epsilon-greedy method
@@ -63,9 +63,6 @@ def main(verbose=False):
         policy.update(0, buf, batch_size=batch_size, repeat=6) 
 
 
-    
-    
-    
 
 if __name__ == '__main__':
     main(verbose=True)
