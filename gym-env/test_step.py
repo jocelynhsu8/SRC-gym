@@ -16,5 +16,5 @@ for i in range(len(psm1_bl[joint + '0'])):
 env = SRCEnv()
 env.reset()
 for i in range(len(psm1_bl[joint + '0'])):
-    env.step(joint_states_psm1[0])
+    env.step(joint_states_psm2[i])
     env.render()
