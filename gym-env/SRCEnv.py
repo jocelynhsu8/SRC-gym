@@ -198,7 +198,8 @@ class SRCEnv(gym.Env):
         # return -obs.dist
         print('obs.dist: ', obs.dist)
         print('obs.angle: ', obs.angle)
-        return -(obs.dist + obs.angle[0][0])
+        return -obs.dist * 10
+        # return -(obs.dist + obs.angle[0][0])
 
     def render(self, mode='human', close=False):
         '''
