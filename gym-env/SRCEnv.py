@@ -47,7 +47,7 @@ class SRCEnv(gym.Env):
         # Initialize simulation environment
         self.world_handle = self.simulation_manager.get_world_handle()
         self.scene = Scene(self.simulation_manager)
-        self.simulation_manager._client.print_summary()
+        #self.simulation_manager._client.print_summary()
         self.psm1 = PSM(self.simulation_manager, 'psm1')
         self.psm2 = PSM(self.simulation_manager, 'psm2')
         self.ecm = ECM(self.simulation_manager, 'CameraFrame')
