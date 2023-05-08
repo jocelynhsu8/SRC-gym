@@ -11,17 +11,17 @@ import gymnasium as gym
 from SRCEnv import SRCEnv
 
 
-def main(verbose=False):
+def main(verbose=True):
     task = 'SRCEnv'
     log_dir = './logs/results'
 
     # Hyperparameters
-    lr, epoch, batch_size = 1e-6, 5, 5
+    lr, epoch, batch_size = 3e-3, 1, 1
     train_num, test_num = 1, 1
-    gamma, n_step, target_freq = 0.9, 3, 320
+    gamma, n_step, target_freq = 0.9, 1, 120
     buffer_size = 20000
     eps_train, eps_test = 0.1, 0.05
-    step_per_epoch, step_per_collect = 2, 10
+    step_per_epoch, step_per_collect = 1, 10
     logger = ts.utils.TensorboardLogger(SummaryWriter(log_dir)) 
 
     gym.envs.register(id=task, entry_point=SRCEnv)
@@ -52,16 +52,18 @@ def main(verbose=False):
     reward_store = []
 
     for i in range(epoch):
+
         result = train_collector.collect(n_step=step_per_epoch)
+        print("RESULTS:", result)
         reward_store.append(result['rew'])
     
-        evaluation_result = test_collector.collect(n_episode=10)
-
+        # evaluation_result = test_collector.collect(n_episode=1)
+        print("yoo")
         if verbose:
-            print(f'Epoch #{i}: Train Reward {result["rew"]} | Eval Reward {evaluation_result["rew"]}')
+            print(f'Epoch #{i}: Train Reward {result["rew"]}') # | Eval Reward {evaluation_result["rew"]}')
         
         logger.add_scalar('train_reward', result['rew'], i)
-        logger.add_scalar('eval_reward', evaluation_result['rew'], i)
+        # logger.add_scalar('eval_reward', evaluation_result['rew'], i)
         policy.update(0, train_collector.buffer, batch_size=batch_size, repeat=1)
         train_collector.reset_buffer(keep_statistics=True)
         np.save(log_dir+'/reward_store.npy', reward_store)

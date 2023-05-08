@@ -47,7 +47,7 @@ class SRCEnv(gym.Env):
         # Initialize simulation environment
         self.world_handle = self.simulation_manager.get_world_handle()
         self.scene = Scene(self.simulation_manager)
-        self.simulation_manager._client.print_summary()
+        #self.simulation_manager._client.print_summary()
         self.psm1 = PSM(self.simulation_manager, 'psm1')
         self.psm2 = PSM(self.simulation_manager, 'psm2')
         self.ecm = ECM(self.simulation_manager, 'CameraFrame')
@@ -85,7 +85,7 @@ class SRCEnv(gym.Env):
         self.obs.dist = self.calc_dist(self.get_needle_mid_in_world(), self.psm1.measured_cp())
         self.obs.angle = self.calc_angle(self.psm1) 
         self.obs.reward = self.reward(self.obs)
-        print('reward: ', self.obs.reward)
+        #print('reward: ', self.obs.reward)
         self.obs.info = {}
         self.obs.sim_step_no += 1
 
@@ -95,7 +95,7 @@ class SRCEnv(gym.Env):
 
     def reset(self, **kwargs):
         """ Reset the state of the environment to an initial state """
-        print('reset func')
+        #print('reset func')
         self.world_handle.reset()
         self.psm1.servo_jp([-0.4, -0.22, 0.139, -1.64, -0.37, -0.11])
         self.psm1.set_jaw_angle(0.8)
@@ -115,18 +115,19 @@ class SRCEnv(gym.Env):
 
         """
         # Limit PSM action to bounds
-        print('before step: ', self.obs.state)
-        print('action: ', action)
+        #print('before step: ', self.obs.state)
+        #print('action: ', action[0:6])
         action = np.clip(action, self.action_lims_low, self.action_lims_high)
         self.action = action
 
-        # Move PSM
-        self.psm1.servo_jp(action)
+        # # Move PSM
+        # self.psm1.servo_jp(action[0:6])
+        # self.psm1.set_jaw_angle(action[-1])
 
         # Update simulation
         self.world_handle.update()
         self._update_observation(action)
-        print('after step: ', self.obs.state)
+        #print('after step: ', self.obs.state)
         return self.obs.cur_observation()
 
     def reward(self, obs):
@@ -140,7 +141,7 @@ class SRCEnv(gym.Env):
         """
         reward = 0
         grasp_reward = self.grasp_reward(obs)
-        print('reward: ', grasp_reward)
+        #print('reward: ', grasp_reward)
         # TODO: Uncomment when implemented
         # insert_reward = self.insert_reward(obs)
         # target_reward = self.target_reward(obs)
@@ -196,9 +197,9 @@ class SRCEnv(gym.Env):
         - reward: the reward for grasping the needle in PSM
         """
         # return -obs.dist
-        print('obs.dist: ', obs.dist)
-        print('obs.angle: ', obs.angle)
-        return -(obs.dist + obs.angle[0][0])
+        #print('obs.dist: ', obs.dist)
+        #print('obs.angle: ', obs.angle)
+        return -1 * obs.dist * 5 #-(obs.dist + obs.angle[0][0])
 
     def render(self, mode='human', close=False):
         '''
@@ -228,9 +229,13 @@ class SRCEnv(gym.Env):
 
 if __name__ == "__main__":
     env = SRCEnv()
-    env.reset()
-    print(env.obs.state)
-    env.step([1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
-    print(env.obs.state)
+    # env.reset()
+    # #print(env.obs.state)
+    # env.step([1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+    # #print(env.obs.state)
     # env.reset()
     # env.render()
+    ag = None
+    g = None
+    env.compute_reward(ag, g, {})
+    print("done")

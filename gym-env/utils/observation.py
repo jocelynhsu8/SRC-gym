@@ -24,4 +24,4 @@ class Observation:
         self.sim_step_no = 0
 
     def cur_observation(self):
-        return np.array(self.state), np.array(self.reward), np.array(self.is_done), np.array(self.is_truncated), self.info
+        return np.array(self.state),float(self.reward), bool(self.is_done), bool(self.is_truncated), self.info
