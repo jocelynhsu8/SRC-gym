@@ -2,6 +2,7 @@
 Base Environment for Surgical Robotics Challenge
 '''
 import gymnasium as gym
+import gymnasium_robotics
 from gymnasium import spaces
 import numpy as np
 import time
@@ -24,7 +25,7 @@ def add_break(s):
     time.sleep(s)
     print('-------------')
 
-class SRCEnv(gym.GoalEnv):
+class SRCEnv(gymnasium_robotics.core.GoalEnv):
     """Custom Environment that follows gym interface"""
     metadata = {'render.modes': ['human']}
 
@@ -134,9 +135,9 @@ class SRCEnv(gym.GoalEnv):
         self.world_handle.update()
         self._update_observation(action)
         self.info += 1
-        reward = self.compute_reward(obs.state, obs.goal, self.info)
-        terminated = self.compute_terminated(obs.state, obs.goal, self.info)
-        truncated = self.compute_truncated(obs.state, obs.goal, self.info)
+        reward = self.compute_reward(obs.achieved_goal, obs.desired_goal, self.info)
+        terminated = self.compute_terminated(obs.achieved_goal, obs.desired_goal, self.info)
+        truncated = self.compute_truncated(obs.achieved_goal, obs.desired_goal, self.info)
         return self.obs, reward, terminated, truncated, info
 
     def compute_terminated(self, achieved_goal, desired_goal, info):
