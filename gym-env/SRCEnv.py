@@ -59,7 +59,7 @@ class SRCEnv(gymnasium_robotics.core.GoalEnv):
         self.init_obs = np.array([-0.4, -0.22, 0.139, -1.64, -0.37, -0.11, 0.8])
         self.dt = 1/120
         self.init_obs = np.array(self.init_obs)
-        self.observation = Observation(self.init_obs)
+        self.observation = Observation(self.init_obs, self.get_needle_mid_in_world)
         self.info = {'calc_dist': True, 
                     'calc_angle': False, 
                     'grasp_completed': False, 
@@ -136,9 +136,9 @@ class SRCEnv(gymnasium_robotics.core.GoalEnv):
         self.world_handle.update()
         self._update_observation(action)
         self.info += 1
-        reward = self.compute_reward(obs.achieved_goal, obs.desired_goal, self.info)
-        terminated = self.compute_terminated(obs.achieved_goal, obs.desired_goal, self.info)
-        truncated = self.compute_truncated(obs.achieved_goal, obs.desired_goal, self.info)
+        reward = self.compute_reward(self.obs.achieved_goal, self.obs.desired_goal, self.info)
+        terminated = self.compute_terminated(self.obs.achieved_goal, self.obs.desired_goal, self.info)
+        truncated = self.compute_truncated(self.obs.achieved_goal, self.obs.desired_goal, self.info)
         return self.obs, reward, terminated, truncated, info
 
     def compute_terminated(self, achieved_goal, desired_goal, info):
