@@ -57,8 +57,9 @@ class SRCEnv(gymnasium_robotics.core.GoalEnv):
 
         self.psm1.servo_jp([-0.4, -0.22, 0.139, -1.64, -0.37, -0.11])
         self.init_obs = np.array([-0.4, -0.22, 0.139, -1.64, -0.37, -0.11, 0.8])
+        self.dt = 1/120
         self.init_obs = np.array(self.init_obs)
-        self.obs = Observation(self.init_obs)
+        self.observation = Observation(self.init_obs)
         self.info = {'calc_dist': True, 
                     'calc_angle': False, 
                     'grasp_completed': False, 
@@ -85,7 +86,7 @@ class SRCEnv(gymnasium_robotics.core.GoalEnv):
         Parameters
         - action: an action provided by the environment
         """
-        self.obs.state += action
+        self.observation.achieved_goal += action * self.dt
         self.psm1.servo_jp(self.obs.state[:6])
         self.psm1.set_jaw_angle(self.obs.state[6])
 
@@ -255,8 +256,8 @@ class SRCEnv(gymnasium_robotics.core.GoalEnv):
 if __name__ == "__main__":
     env = SRCEnv()
     env.reset()
-    print(env.obs.state)
+    print(env.observation.achieved_goal)
     env.step([1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
-    print(env.obs.state)
+    print(env.observation.achieved_goal)
     # env.reset()
     # env.render()
