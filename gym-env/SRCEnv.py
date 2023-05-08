@@ -135,9 +135,25 @@ class SRCEnv(gym.GoalEnv):
         self._update_observation(action)
         self.info += 1
         reward = self.compute_reward(obs.state, obs.goal, self.info)
-        terminated = self.compute_truncated(obs.state, obs.goal, self.info)
-        # truncated = self.compute_truncated(obs.state, obs.goal, self.info)
+        terminated = self.compute_terminated(obs.state, obs.goal, self.info)
+        truncated = self.compute_truncated(obs.state, obs.goal, self.info)
         return self.obs, reward, terminated, truncated, info
+
+    def compute_terminated(self, achieved_goal, desired_goal, info):
+        """ Compute if the episode is terminated
+        
+        Parameters
+        - obs: an action provided by the environment
+        
+        Returns
+        - terminated: whether the episode is terminated
+        """
+        # TODO: update for other tasks once done with grasped
+        terminated = False
+        if info['calc_dist'] and not info['calc_angle']:
+            terminated = self.calc_dist(achieved_goal, desired_goal) < 0.01
+        self.info['grasp_completed'] = terminated
+        return terminated
 
     def compute_truncated(self, achieved_goal, desired_goal, info):
         """ Compute if the episode is truncated
