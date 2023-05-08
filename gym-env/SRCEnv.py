@@ -63,7 +63,8 @@ class SRCEnv(gym.GoalEnv):
                     'grasp_completed': False, 
                     'insert_completed': False,
                     'target_completed': False, 
-                    'sim_step_no': 0}
+                    'sim_step_no': 0,
+                    'max_sim_step': 100}
 
         # Small sleep to let the handles initialize properly
         add_break(0.5)
@@ -134,9 +135,20 @@ class SRCEnv(gym.GoalEnv):
         self._update_observation(action)
         self.info += 1
         reward = self.compute_reward(obs.state, obs.goal, self.info)
-        # terminated = self.compute_truncated(obs.state, obs.goal, self.info)
+        terminated = self.compute_truncated(obs.state, obs.goal, self.info)
         # truncated = self.compute_truncated(obs.state, obs.goal, self.info)
         return self.obs, reward, terminated, truncated, info
+
+    def compute_truncated(self, achieved_goal, desired_goal, info):
+        """ Compute if the episode is truncated
+        
+        Parameters
+        - obs: an action provided by the environment
+        
+        Returns
+        - truncated: whether the episode is truncated
+        """
+        return info.sim_step_no >= info.max_sim_step
 
     def compute_reward(self, achieved_goal, desired_goal, info):
         """ Compute the cumulative reward for the action taken
