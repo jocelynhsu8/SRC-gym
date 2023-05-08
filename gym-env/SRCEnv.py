@@ -48,7 +48,7 @@ class SRCEnv(gymnasium_robotics.core.GoalEnv):
         # Initialize simulation environment
         self.world_handle = self.simulation_manager.get_world_handle()
         self.scene = Scene(self.simulation_manager)
-        self.simulation_manager._client.print_summary()
+        # self.simulation_manager._client.print_summary()
         self.psm1 = PSM(self.simulation_manager, 'psm1')
         self.psm2 = PSM(self.simulation_manager, 'psm2')
         self.ecm = ECM(self.simulation_manager, 'CameraFrame')
@@ -56,10 +56,10 @@ class SRCEnv(gymnasium_robotics.core.GoalEnv):
         self._needle_kin = NeedleKinematics() # needle movement and positioning
 
         self.psm1.servo_jp([-0.4, -0.22, 0.139, -1.64, -0.37, -0.11])
-        self.init_obs = np.array([-0.4, -0.22, 0.139, -1.64, -0.37, -0.11, 0.8])
+        self.init_state = np.array([-0.4, -0.22, 0.139, -1.64, -0.37, -0.11, 0.8])
+        self.init_achieved_goal = self.psm1.measured_cp()
         self.dt = 1/120
-        self.init_obs = np.array(self.init_obs)
-        self.observation = Observation(self.init_obs, self.get_needle_mid_in_world)
+        self.observation = Observation(self.init_state, self.init_achieved_goal, self.get_needle_mid_in_world())
         self.info = {'calc_dist': True, 
                     'calc_angle': False, 
                     'grasp_completed': False, 
@@ -86,31 +86,21 @@ class SRCEnv(gymnasium_robotics.core.GoalEnv):
         Parameters
         - action: an action provided by the environment
         """
-        self.observation.achieved_goal += action * self.dt
-        self.psm1.servo_jp(self.obs.state[:6])
-        self.psm1.set_jaw_angle(self.obs.state[6])
+        self.observation.state += action * self.dt
+        self.psm1.servo_jp(self.observation.state[:6])
+        self.psm1.set_jaw_angle(self.observation.state[6])
+        self.observation.achieved_goal = self.psm1.measured_cp()
+        self.info['sim_step_no'] += 1
 
-        # Compute current distance and approach angle of psm and needle, both in world coordinates
-        self.obs.dist = self.calc_dist(self.get_needle_mid_in_world(), self.psm1.measured_cp())
-        # self.obs.angle = self.calc_angle(self.psm1) 
-        self.obs.reward = self.reward(self.obs)
-        print('reward: ', self.obs.reward)
-        self.obs.info = {}
-        self.obs.sim_step_no += 1
-
-        # Determine if psm is ready to grasp needle
-        if self.obs.dist < 0.01 and self.obs.angle < 0.01:
-            self.obs.is_done = True
-
-    def reset(self, **kwargs):
+    def reset(self):
         """ Reset the state of the environment to an initial state """
         print('reset func')
         self.world_handle.reset()
         self.psm1.servo_jp([-0.4, -0.22, 0.139, -1.64, -0.37, -0.11])
         self.psm1.set_jaw_angle(0.8)
-        self.obs.reset(self.init_obs)
+        self.observation.reset(self.init_state, self.init_achieved_goal)
         add_break(3.0)
-        return np.array(self.obs.state, dtype=np.float32), self.obs.info
+        return np.array(self.observation.achieved_goal, dtype=np.float32), self.info
     
 
     def step(self, action):
@@ -124,7 +114,7 @@ class SRCEnv(gymnasium_robotics.core.GoalEnv):
 
         """
         # Limit PSM action to bounds
-        print('current state: ', self.obs.state)
+        print('current state: ', self.observation.achieved_goal)
         print('action: ', action)
         action = np.clip(action, self.action_lims_low, self.action_lims_high)
         self.action = action
@@ -135,11 +125,10 @@ class SRCEnv(gymnasium_robotics.core.GoalEnv):
         # Update simulation
         self.world_handle.update()
         self._update_observation(action)
-        self.info += 1
-        reward = self.compute_reward(self.obs.achieved_goal, self.obs.desired_goal, self.info)
-        terminated = self.compute_terminated(self.obs.achieved_goal, self.obs.desired_goal, self.info)
-        truncated = self.compute_truncated(self.obs.achieved_goal, self.obs.desired_goal, self.info)
-        return self.obs, reward, terminated, truncated, info
+        reward = self.compute_reward(self.observation.achieved_goal, self.observation.desired_goal, self.info)
+        terminated = self.compute_terminated(self.observation.achieved_goal, self.observation.desired_goal, self.info)
+        truncated = self.compute_truncated(self.observation.achieved_goal, self.observation.desired_goal, self.info)
+        return self.observation, reward, terminated, truncated, self.info
 
     def compute_terminated(self, achieved_goal, desired_goal, info):
         """ Compute if the episode is terminated
@@ -166,7 +155,7 @@ class SRCEnv(gymnasium_robotics.core.GoalEnv):
         Returns
         - truncated: whether the episode is truncated
         """
-        return info.sim_step_no >= info.max_sim_step
+        return info['sim_step_no'] >= info['max_sim_step']
 
     def compute_reward(self, achieved_goal, desired_goal, info):
         """ Compute the cumulative reward for the action taken
@@ -214,12 +203,12 @@ class SRCEnv(gymnasium_robotics.core.GoalEnv):
         """
         if type(goal_pose) == Frame:
             goal_pose_p = np.array([goal_pose.p.x(), goal_pose.p.y(), goal_pose.p.z()])
-        elif type(goal_pose) == np.matrix:
+        elif type(goal_pose) == np.matrix or type(goal_pose) == np.ndarray:
             goal_pose_p = goal_pose[0:3, 3]
 
         if type(current_pose) == Frame:
             current_pose_p = np.array([current_pose.p.x(), current_pose.p.y(), current_pose.p.z()])
-        elif type(current_pose) == np.matrix:
+        elif type(current_pose) == np.matrix or type(current_pose) == np.ndarray:
             current_pose_p = current_pose[0:3, 3]
 
         dist = np.linalg.norm(goal_pose_p - current_pose_p)

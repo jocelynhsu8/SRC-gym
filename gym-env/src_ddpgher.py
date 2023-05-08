@@ -19,6 +19,8 @@ from tianshou.data import (
     ReplayBuffer,
     VectorReplayBuffer,
 )
+
+import tianshou as ts
 from tianshou.env import ShmemVectorEnv, TruncatedAsTerminated
 from tianshou.exploration import GaussianNoise
 from tianshou.policy import DDPGPolicy
@@ -52,7 +54,7 @@ def get_args():
     )
     parser.add_argument("--her-horizon", type=int, default=50)
     parser.add_argument("--her-future-k", type=int, default=8)
-    parser.add_argument("--training-num", type=int, default=1)
+    parser.add_argument("--training-num", type=int, default=2)
     parser.add_argument("--test-num", type=int, default=1)
     parser.add_argument("--logdir", type=str, default="log")
     parser.add_argument("--render", type=float, default=0.)
@@ -80,12 +82,14 @@ def get_args():
 def make_fetch_env(task, training_num, test_num):
     gym.envs.register(id=task, entry_point=SRCEnv)
     env = TruncatedAsTerminated(gym.make(task))
-    train_envs = ShmemVectorEnv(
-        [lambda: TruncatedAsTerminated(gym.make(task)) for _ in range(training_num)]
-    )
-    test_envs = ShmemVectorEnv(
-        [lambda: TruncatedAsTerminated(gym.make(task)) for _ in range(test_num)]
-    )
+    # train_envs = ShmemVectorEnv(
+    #     [lambda: TruncatedAsTerminated(gym.make(task)) for _ in range(training_num)]
+    # )
+    # test_envs = ShmemVectorEnv(
+    #     [lambda: TruncatedAsTerminated(gym.make(task)) for _ in range(test_num)]
+    # )
+    train_envs = ts.env.DummyVectorEnv([lambda: gym.make(task) for _ in range(training_num)])
+    test_envs = ts.env.DummyVectorEnv([lambda: gym.make(task) for _ in range(test_num)])
     return env, train_envs, test_envs
 
 
