@@ -47,15 +47,15 @@ class SRCEnv(gym.Env):
         # Initialize simulation environment
         self.world_handle = self.simulation_manager.get_world_handle()
         self.scene = Scene(self.simulation_manager)
-        # self.simulation_manager._client.print_summary()
         self.psm1 = PSM(self.simulation_manager, 'psm1')
         self.psm2 = PSM(self.simulation_manager, 'psm2')
         self.ecm = ECM(self.simulation_manager, 'CameraFrame')
         self.needle = NeedleInitialization(self.simulation_manager) # needle obj
         self._needle_kin = NeedleKinematics() # needle movement and positioning
 
+        self.init_obs = self.psm1.measured_jp()
+        self.init_obs.append(0)
         self.psm1.servo_jp([-0.4, -0.22, 0.139, -1.64, -0.37, -0.11])
-        self.init_obs = np.array([-0.4, -0.22, 0.139, -1.64, -0.37, -0.11, 0.8])
         self.init_obs = np.array(self.init_obs)
         self.obs = Observation(self.init_obs)
 
@@ -195,7 +195,6 @@ class SRCEnv(gym.Env):
         Returns
         - reward: the reward for grasping the needle in PSM
         """
-        # return -obs.dist
         print('obs.dist: ', obs.dist)
         print('obs.angle: ', obs.angle)
         return -(obs.dist + obs.angle[0][0])
@@ -233,4 +232,3 @@ if __name__ == "__main__":
     env.step([1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
     print(env.obs.state)
     # env.reset()
-    # env.render()

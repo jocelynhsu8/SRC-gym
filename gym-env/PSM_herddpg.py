@@ -36,33 +36,37 @@ def main(verbose=False):
 
     actor_net = Net(state_shape=state_shape, action_shape=action_shape, hidden_sizes=[128, 128, 128])
     actor_optim = torch.optim.Adam(actor_net.parameters(), lr=lr)
+
     critic_net = Net(state_shape=state_shape, action_shape=action_shape, hidden_sizes=[128, 128, 128])
     critic_optim = torch.optim.Adam(critic_net.parameters(), lr=lr)
 
+    
+
+    # policy = ts.policy.DDPGPolicy(net, optim, gamma, n_step, target_update_freq=target_freq)
     policy = DDPGPolicy(actor_net, actor_optim, critic_net, critic_optim, gamma=gamma, estimation_step=n_step)
 
-    buf = ReplayBuffer(size=12)
     # train_collector = ts.data.Collector(policy, train_envs, ts.data.VectorReplayBuffer(buffer_size, train_num), exploration_noise=True)
     train_collector = ts.data.Collector(policy, train_envs, exploration_noise=True)  # because DQN uses epsilon-greedy method
     test_collector = ts.data.Collector(policy, test_envs, exploration_noise=True)  # because DQN uses epsilon-greedy method
 
     # Ref: https://colab.research.google.com/drive/1MhzYXtUEfnRrlAVSB3SR83r0HA5wds2i?usp=sharing#scrollTo=a_mtvbmBZbfs
     print('Start training...')
-    reward_store = []
-    obs = env.reset()
-
-    for i in range(epoch):
-        print('obs: ', obs)
-        act = policy(Batch(obs=obs)).act.item()
-        obs_next, rew, done, info = env.step(act)
-        # pretend ending at step 3
-        done = True if i==2 else False
-        info["id"] = i
-        buf.add(Batch(obs=obs, act=act, rew=rew, done=done, obs_next=obs_next, info=info))
-        obs_next = obs
-        policy.update(0, buf, batch_size=batch_size, repeat=6) 
-
-
+    result = ts.trainer.offpolicy_trainer(
+        policy, 
+        train_collector, 
+        test_collector, 
+        epoch, 
+        step_per_epoch, 
+        step_per_collect,
+        test_num, 
+        batch_size, 
+        update_per_step=1 / step_per_collect,
+        # train_fn=lambda epoch, env_step: policy.set_eps(eps_train),
+        # test_fn=lambda epoch, env_step: policy.set_eps(eps_test),
+        stop_fn=lambda mean_rewards: mean_rewards >= env.spec.reward_threshold,
+        logger=logger)
+    print(f'Finished training! Use {result["duration"]}')
+    torch.save(policy.state_dict(), 'dqn.pth')
 
 if __name__ == '__main__':
     main(verbose=True)
