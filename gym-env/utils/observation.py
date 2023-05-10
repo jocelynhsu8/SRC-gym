@@ -23,5 +23,8 @@ class Observation:
         self.info = {}
         self.sim_step_no = 0
 
+    def reset(self, state):
+        self.state = state
+
     def cur_observation(self):
         return np.array(self.state), np.array(self.reward), np.array(self.is_done), np.array(self.is_truncated), self.info

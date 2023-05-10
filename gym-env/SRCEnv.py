@@ -47,7 +47,6 @@ class SRCEnv(gym.Env):
         # Initialize simulation environment
         self.world_handle = self.simulation_manager.get_world_handle()
         self.scene = Scene(self.simulation_manager)
-        #self.simulation_manager._client.print_summary()
         self.psm1 = PSM(self.simulation_manager, 'psm1')
         self.psm2 = PSM(self.simulation_manager, 'psm2')
         self.ecm = ECM(self.simulation_manager, 'CameraFrame')
@@ -56,6 +55,7 @@ class SRCEnv(gym.Env):
 
         self.init_obs = self.psm1.measured_jp()
         self.init_obs.append(0)
+        self.psm1.servo_jp([-0.4, -0.22, 0.139, -1.64, -0.37, -0.11])
         self.init_obs = np.array(self.init_obs)
         self.obs = Observation(self.init_obs)
 
@@ -85,6 +85,7 @@ class SRCEnv(gym.Env):
         self.obs.dist = self.calc_dist(self.get_needle_mid_in_world(), self.psm1.measured_cp())
         self.obs.angle = self.calc_angle(self.psm1) 
         self.obs.reward = self.reward(self.obs)
+        print('reward: ', self.obs.reward)
         self.obs.info = {}
         self.obs.sim_step_no += 1
 
@@ -231,4 +232,3 @@ if __name__ == "__main__":
     env.step([1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
     print(env.obs.state)
     # env.reset()
-    # env.render()

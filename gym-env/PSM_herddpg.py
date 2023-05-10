@@ -1,12 +1,11 @@
 import numpy as np
+import matplotlib as plt
 import os, time
 
-# from stable_baselines3 import HER, DDPG, HerReplayBuffer
-# from stable_baselines3.ddpg.policies import MlpPolicy
-# from stable_baselines3.common.noise import OrnsteinUhlenbeckActionNoise
-# from stable_baselines3.common.callbacks import CallbackList, CheckpointCallback, EvalCallback
 import tianshou as ts
 from tianshou.policy import DDPGPolicy
+from tianshou.data import Batch, ReplayBuffer
+
 import torch, numpy as np, torch.nn as nn
 from tianshou.utils.net.common import Net
 from torch.utils.tensorboard import SummaryWriter
@@ -14,17 +13,17 @@ import gymnasium as gym
 from SRCEnv import SRCEnv
 
 
-def main():
+def main(verbose=False):
     task = 'SRCEnv'
     log_dir = './logs/results'
 
     # Hyperparameters
-    lr, epoch, batch_size = 1e-3, 10, 128
+    lr, epoch, batch_size = 1e-6, 5, 5
     train_num, test_num = 1, 1
     gamma, n_step, target_freq = 0.9, 3, 320
     buffer_size = 20000
     eps_train, eps_test = 0.1, 0.05
-    step_per_epoch, step_per_collect = 10000, 10
+    step_per_epoch, step_per_collect = 2, 10
     logger = ts.utils.TensorboardLogger(SummaryWriter(log_dir)) 
 
     gym.envs.register(id=task, entry_point=SRCEnv)
@@ -50,6 +49,7 @@ def main():
     train_collector = ts.data.Collector(policy, train_envs, exploration_noise=True)  # because DQN uses epsilon-greedy method
     test_collector = ts.data.Collector(policy, test_envs, exploration_noise=True)  # because DQN uses epsilon-greedy method
 
+    # Ref: https://colab.research.google.com/drive/1MhzYXtUEfnRrlAVSB3SR83r0HA5wds2i?usp=sharing#scrollTo=a_mtvbmBZbfs
     print('Start training...')
     result = ts.trainer.offpolicy_trainer(
         policy, 
@@ -68,13 +68,5 @@ def main():
     print(f'Finished training! Use {result["duration"]}')
     torch.save(policy.state_dict(), 'dqn.pth')
 
-    policy.load_state_dict(torch.load('dqn.pth'))
-    policy.eval()
-    policy.set_eps(eps_test)
-    collector = ts.data.Collector(policy, env, exploration_noise=True)
-    collector.collect(n_episode=1, render=1 / 35)
-    
-    
-
 if __name__ == '__main__':
-    main()
+    main(verbose=True)
