@@ -15,9 +15,18 @@ from src.scripts.surgical_robotics_challenge.scene import Scene
 from src.scripts.surgical_robotics_challenge.simulation_manager import SimulationManager
 from src.scripts.surgical_robotics_challenge.task_completion_report import TaskCompletionReport
 from src.scripts.surgical_robotics_challenge.utils.task3_init import NeedleInitialization
+<<<<<<< Updated upstream
 from src.scripts.surgical_robotics_challenge.evaluation.evaluation import Task_2_Evaluation, Task_2_Evaluation_Report
 from utils.observation import Observation
 from utils.needle_kinematics import NeedleKinematics
+=======
+from evaluation import *
+
+N_DISCRETE_ACTIONS = 3
+HEIGHT = 0
+WIDTH = 0
+N_CHANNELS = 0
+>>>>>>> Stashed changes
 
 
 def add_break(s):
@@ -105,10 +114,25 @@ class SRCEnv(gym.Env):
     
 
     def step(self, action):
+<<<<<<< Updated upstream
         """ Execute one time step within the environment
 
         Parameters
         - action: an action provided by the environment
+=======
+        # Execute one time step within the environment
+
+        raise NotImplementedError
+
+    def select_action(self):
+        action = max(self.action_space, key=lambda x: self.reward(action))
+        return action
+
+    def reward(self, action):
+        # Return the reward for the action
+        task2_eval = Task_2_Evaluation()
+        return task2_eval._success
+>>>>>>> Stashed changes
 
         Returns
         - observation: agent's observation of the current environment after the action
